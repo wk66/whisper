@@ -2,6 +2,7 @@
 
 import os
 import mmap
+import time
 import struct
 import signal
 import sys
@@ -18,7 +19,31 @@ if sys.version_info >= (3, 0):
 # Ignore SIGPIPE
 signal.signal(signal.SIGPIPE, signal.SIG_DFL)
 
+_DROP_FUNCTIONS = {
+  'zeroes': lambda x: x != 0,
+  'nulls': lambda x: x is not None,
+  'empty': lambda x: x != 0 and x is not None
+}
+now = int( time.time() )
 option_parser = optparse.OptionParser(usage='''%prog path''')
+option_parser.add_option('--archive', default=-1, type='int',
+                         help="Number of archive to dump values from (default: all)")
+option_parser.add_option('--omit-header', default=False, action='store_true', dest='omit_header',
+                         help="Omit header info (default: false)")
+option_parser.add_option('--drop',
+                         choices=list(_DROP_FUNCTIONS.keys()),
+                         action='store',
+                         help="Specify 'nulls' to drop all null values. \
+Specify 'zeroes' to drop all zero values. \
+Specify 'empty' to drop both null and zero values")
+option_parser.add_option('--format-for-update', default=False, action='store_true',
+                         dest='format_for_update',
+                         help="Print suitable for whisper-update (default: false)")
+option_parser.add_option('--from', default=0, type='int', dest='_from',
+                         help=("Unix epoch time of the beginning of "
+                               "your requested interval (default: 24 hours ago)"))
+option_parser.add_option('--until', default=now, type='int',
+                         help="Unix epoch time of the end of your requested interval (default: now)")
 (options, args) = option_parser.parse_args()
 
 if len(args) != 1:
@@ -41,7 +66,10 @@ def read_header(map):
   archives = []
   archiveOffset = whisper.metadataSize
 
+  archive_number_to_dump = int(options.archive)
   for i in xrange(archiveCount):
+    if archive_number_to_dump > -1 and archive_number_to_dump != i:
+      continue
     try:
       (offset, secondsPerPoint, points) = struct.unpack(whisper.archiveInfoFormat, map[archiveOffset:archiveOffset+whisper.archiveInfoSize])
     except:
@@ -84,12 +112,19 @@ def dump_archive_headers(archives):
     print("")
 
 def dump_archives(archives):
+  keep = _DROP_FUNCTIONS.get(options.drop)
   for i,archive in enumerate(archives):
-    print('Archive %d data:' %i)
+    if not options.omit_header:
+      print('Archive %d data:' %i)
     offset = archive['offset']
     for point in xrange(archive['points']):
       (timestamp, value) = struct.unpack(whisper.pointFormat, map[offset:offset+whisper.pointSize])
-      print('%d: %d, %10.35g' % (point, timestamp, value))
+      if not options.drop or keep(value):
+        if timestamp >= options._from and timestamp <= options.until:
+          if options.format_for_update:
+            print('%d:%.9g' % (timestamp, value)) 
+          else:
+            print('%d: %d, %10.35g' % (point, timestamp, value))
       offset += whisper.pointSize
     print
 
@@ -98,5 +133,6 @@ if not os.path.exists(path):
 
 map = mmap_file(path)
 header = read_header(map)
-dump_header(header)
+if not options.omit_header:
+  dump_header(header)
 dump_archives(header['archives'])
