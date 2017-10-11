@@ -18,6 +18,8 @@ Whisper is a fixed-size database, similar in design and purpose to RRD (round-ro
 
 ## Installation, Configuration and Usage
 
+Use Python 2.7, install requirements as listed in `requirements.txt` to be able to run tests.
+
 Please refer to the instructions at [readthedocs](http://graphite.readthedocs.org/).
 
 ## Whisper Scripts
