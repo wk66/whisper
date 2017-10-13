@@ -829,8 +829,7 @@ def __archive_update_many(fh, header, archive, points):
       fh.write(packedString[:-bytesBeyond])
       assert fh.tell() == archiveEnd, (
         "archiveEnd=%d fh.tell=%d bytesBeyond=%d len(packedString)=%d" %
-        (archiveEnd, fh.tell(), bytesBeyond, len(packedString))
-      )
+        (archiveEnd, fh.tell(), bytesBeyond, len(packedString)))
       fh.seek(archive['offset'])
       # Safe because it can't exceed the archive (retention checking logic above)
       fh.write(packedString[-bytesBeyond:])
