@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 import sys
 import os
+import re
 import fnmatch
 from subprocess import call
 from optparse import OptionParser
@@ -46,6 +47,10 @@ option_parser.add_option(
     '-x', '--extra_args', default='', type='string',
     help="pass any additional arguments to the %s script" %
          basename(whisperResizeExecutable))
+# reserve -r for regexp from commandline
+option_parser.add_option(
+    '-R', '--regexps_from_file', default=None, type='string',
+    help="use the regexps from the given file as positive filter")
 
 (options, args) = option_parser.parse_args()
 
@@ -78,6 +83,14 @@ except ImportError:
 # Injecting the Carbon Lib Path if needed
 if options.carbonlib is not None:
     sys.path.insert(0, options.carbonlib)
+
+if options.regexps_from_file is None:
+    filepath_regex = None
+else:
+    with open(options.regexps_from_file) as regexps_file:
+        lines = [line.strip() for line in regexps_file]
+    filepath_regex = re.compile(
+        '|'.join(r'(%s)' % regex for regex in lines if regex))
 
 try:
     from carbon.conf import settings
@@ -230,6 +243,11 @@ def confirm(question, error_response='Valid options : yes or no'):
         print(error_response)
 
 
+def matches_regexps(fullpath):
+    global filepath_regex
+    return filepath_regex is None or filepath_regex.match(fullpath)
+
+
 if os.path.isfile(processPath) and processPath.endswith('.wsp'):
     processMetric(processPath, schemas, agg_schemas)
 else:
@@ -237,4 +255,6 @@ else:
         # we only want to deal with non-hidden whisper files
         for f in fnmatch.filter(files, '*.wsp'):
             fullpath = os.path.join(root, f)
+            if not matches_regexps(fullpath):
+                continue
             processMetric(fullpath, schemas, agg_schemas)
