@@ -30,7 +30,7 @@ option_parser.add_option(
     help="This is not a drill, lets do it")
 option_parser.add_option(
     '-q', '--quiet', default=False, action='store_true',
-    help="Display extra debugging info")
+    help="hide extra debugging info")
 option_parser.add_option(
     '--subdir', default=None,
     type='string', help="only process a subdir of whisper files")
@@ -50,7 +50,7 @@ option_parser.add_option(
 # reserve -r for regexp from commandline
 option_parser.add_option(
     '-R', '--regexps_from_file', default=None, type='string',
-    help="use the regexps from the given file as positive filter")
+    help="process only files matching one of the regular expressions from the given file")
 
 (options, args) = option_parser.parse_args()
 
